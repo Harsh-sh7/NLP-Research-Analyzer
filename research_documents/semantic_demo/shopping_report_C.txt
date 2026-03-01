@@ -1,0 +1,3 @@
+An end-user acquired a device via an e-commerce marketplace application.
+The purchaser completed the checkout process with a virtual wallet payment.
+The commodity was dispatched from the fulfillment hub to the recipient's residence.

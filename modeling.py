@@ -61,18 +61,32 @@ def calculate_optimal_clusters(X, max_k=6):
 
     best_k = 2
     best_score = -1
+    scores_per_k = {}
+
+    if n_docs < 3:
+        # Silhouette requires at least 3 samples for meaningful range
+        return best_k, scores_per_k
 
     for k in range(2, upper_bound + 1):
-        model = KMeans(n_clusters=k, random_state=42)
-        labels = model.fit_predict(X)
+        try:
+            model = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
+            labels = model.fit_predict(X)
 
-        score = silhouette_score(X, labels)
+            # Guard against degenerate single-label clustering
+            if len(set(labels)) > 1:
+                score = silhouette_score(X, labels, metric='cosine')
+            else:
+                score = -1
 
-        if score > best_score:
-            best_score = score
-            best_k = k
+            scores_per_k[k] = round(float(score), 4)
 
-    return best_k
+            if score > best_score:
+                best_score = score
+                best_k = k
+        except Exception:
+            scores_per_k[k] = -1.0
+
+    return best_k, scores_per_k
 
 def identify_top_keywords(vectorizer, X, top_n=10):
     feature_names = np.array(vectorizer.get_feature_names_out())
