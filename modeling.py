@@ -9,11 +9,11 @@ def dynamic_max_features(docs):
     all_tokens = " ".join(docs).split()
     unique_vocab = len(set(all_tokens))
     
-    # Keep 50% of unique vocabulary
-    max_features = int(0.5 * unique_vocab)
+    # Keep 60% of unique vocabulary for richer representation
+    max_features = int(0.6 * unique_vocab)
     
-    max_features = max(50, max_features)   # lower bound
-    max_features = min(1000, max_features)  # upper bound
+    max_features = max(50, max_features)    # lower bound
+    max_features = min(3000, max_features)  # upper bound
 
     return max_features
 

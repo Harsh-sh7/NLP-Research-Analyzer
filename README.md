@@ -37,7 +37,7 @@ The challenge lies in achieving meaningful document understanding using only cla
 2. Vector Representation
    - TF-IDF with sublinear term frequency scaling
    - Unigrams + Bigrams (`ngram_range=(1, 2)`)
-   - Dynamic `max_features` scaling (50% of unique vocabulary, bounded between 50–1000)
+   - Dynamic `max_features` scaling (60% of unique vocabulary, bounded between 50–3000)
 
 3. Similarity Computation
    - Cosine Similarity (normalized dot product, length-agnostic)
@@ -54,6 +54,7 @@ The challenge lies in achieving meaningful document understanding using only cla
 6. Extractive Summarization
    - TextRank algorithm: builds a sentence similarity graph using cosine similarity of TF-IDF vectors, then applies PageRank to rank sentences by global importance
    - Sentence count scales dynamically with cluster size (~2 sentences per document, min 4, max 10)
+   - Quality guards: citation/reference detection, math-extraction noise filter, and cosine-based deduplication (70% threshold) to prevent near-duplicate sentences
 
 7. Visualization & Interaction
    - Cosine Similarity Heatmap (Plotly, with truncated labels and full-name hover)
@@ -72,11 +73,14 @@ Performance is evaluated using:
 
 ## Optimization
 
-- Implemented dynamic TF-IDF `max_features` scaling (proportional to unique vocabulary size) to control sparsity without manual tuning.
+- Implemented dynamic TF-IDF `max_features` scaling (60% of unique vocabulary, bounded 50–3000) to balance richness and sparsity.
 - Applied sublinear term frequency (`sublinear_tf=True`) to dampen the effect of very high raw counts and improve discriminative power.
 - Used `cosine` metric in silhouette scoring instead of Euclidean — more appropriate for the L2-normalized TF-IDF vectors.
 - Added K-Means++ initialisation (`init='k-means++'`, `n_init=10`) for more stable cluster convergence.
 - Constrained extractive summarization input to 50,000 characters and filtered sentences to 20–500 characters to prevent table-of-contents junk and PDF artifacts from polluting summaries.
+- Added citation/reference line detection (numbered entries, bibliography markers like "et al", "Proceedings", "doi:") to exclude non-content sentences from summaries.
+- Implemented cosine-based near-duplicate removal (70% similarity threshold) so summaries contain diverse, non-repetitive sentences.
+- Added math-extraction noise filter (single-char token ratio, real-word ratio, average token length) to handle formula-heavy PDFs.
 
 ## Assumptions & Reasoning
 
@@ -99,9 +103,9 @@ The application ships with three sample corpora to demonstrate its capabilities 
 *   **Contents:** Nine text documents across three distinct domains — Quantum Computing, Cybersecurity, and Telemedicine (three documents per domain).
 *   **Purpose:** Demonstrates standard multi-topic clustering. Documents within the same domain share heavy vocabulary overlap, allowing K-Means to group them correctly. Cross-domain similarity scores remain low, confirming effective separation.
 
-### 2. AI Research Papers (PDF)
-*   **Contents:** Seven PDF files including landmark computer science research papers (*Attention Is All You Need*, *BERT*, *Deep Residual Learning*, *ImageNet Classification with Deep CNNs*, *MapReduce*, *The Google File System*) and one completely unrelated outlier (*Cricket Rule Book*).
-*   **Purpose:** Showcases when this classical framework excels. The vocabulary domains are distinct and highly specialised (e.g., "attention", "transformer", "residual", "MapReduce", "innings", "umpire"). K-Means easily separates the papers into correct technical groupings and isolates the unrelated outlier.
+### 2. Research Papers (PDF)
+*   **Contents:** Seven PDF research papers spanning diverse domains — *A Model-Free Universal AI*, *EmpiRE-Compass*, *Generative Agents Navigating Digital Libraries*, *Iconographic Classification for Digitized Artworks*, *Learning-based Multi-agent Race Strategies in Formula 1*, *SPM-Bench*, and *Toward Expert Investment Teams*.
+*   **Purpose:** Demonstrates cross-domain clustering on real academic papers. K-Means groups papers with overlapping vocabulary (e.g., AI/agent-focused papers vs. domain-specific ones) and the silhouette score helps identify natural topic boundaries.
 
 ### 3. Semantic Limitation Demo
 *   **Contents:** Three very short text documents, each describing the same real-world event — an online shopping transaction — but each using entirely different vocabulary (e.g., "shopper placed an order" vs. "client procured a gadget" vs. "end-user acquired a device").

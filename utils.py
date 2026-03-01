@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import networkx as nx
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,22 +12,63 @@ from pypdf import PdfReader
 # Extractive Summarization (TextRank)
 # ---------------------------------------------------------------------------
 
+def _is_readable_sentence(sent):
+    """Return True if the sentence looks like natural language, not garbled
+    math/symbol noise or a citation/reference line from a PDF."""
+    tokens = sent.split()
+    if len(tokens) < 4:
+        return False
+
+    # --- Citation / Reference Detection ---
+    # Lines like "13 M. Alhamadi, et al , Data Quality..." or "3 Agent4DL Agent4DL..."
+    stripped = sent.lstrip()
+    if re.match(r'^\d{1,3}\s+[A-Z]', stripped):
+        # Starts with 1-3 digit number followed by uppercase → likely a reference
+        # But allow sentences like "2024 was a great year..." (number is 4+ digits)
+        num_match = re.match(r'^(\d+)', stripped)
+        if num_match and len(num_match.group(1)) <= 3:
+            return False
+
+    # Skip lines that look like bibliography entries (contain "et al" / "Proceedings" / "Conference")
+    bib_markers = ['et al', 'proceedings', 'conference,', 'journal of', 'arxiv:', 'doi:',
+                    'vol.', 'pp.', 'isbn', 'issn']
+    lower = sent.lower()
+    bib_score = sum(1 for m in bib_markers if m in lower)
+    if bib_score >= 2:
+        return False
+
+    # --- Math Noise Detection ---
+    single_char_count = sum(1 for t in tokens if len(t) <= 1)
+    single_char_ratio = single_char_count / len(tokens)
+    if single_char_ratio > 0.40:
+        return False
+
+    real_words = sum(1 for t in tokens if len(t) >= 3 and t.isalpha())
+    real_word_ratio = real_words / len(tokens)
+    if real_word_ratio < 0.30:
+        return False
+
+    avg_len = sum(len(t) for t in tokens) / len(tokens)
+    if avg_len < 2.5:
+        return False
+
+    return True
+
+
 def generate_extractive_summary(text, vectorizer, top_n=3):
-    """TextRank-based extractive summarizer with guard-rails for large PDFs."""
-    # Cap input length to avoid extreme processing times
+    """TextRank-based extractive summarizer with deduplication and quality guards."""
     MAX_INPUT_CHARS = 50_000
     if len(text) > MAX_INPUT_CHARS:
         text = text[:MAX_INPUT_CHARS]
 
     raw_sentences = nltk.sent_tokenize(text)
 
-    # Filter: keep sentences between 20-500 chars (removes TOC junk,
-    # footer fragments, but keeps legitimately long research sentences)
     MIN_SENT_LEN = 20
     MAX_SENT_LEN = 500
     sentences = [
         s.strip() for s in raw_sentences
         if MIN_SENT_LEN < len(s.strip()) <= MAX_SENT_LEN
+        and _is_readable_sentence(s.strip())
     ]
 
     if not sentences:
@@ -43,18 +85,32 @@ def generate_extractive_summary(text, vectorizer, top_n=3):
     except Exception:
         scores = {i: sim_matrix.sum(axis=1)[i] for i in range(len(sentences))}
 
-    n_sentences = min(top_n, len(sentences))
-
-    ranked_scored = sorted(
+    # Rank all sentences by score
+    ranked = sorted(
         ((scores[i], i) for i in range(len(sentences))), reverse=True
     )
-    top_indices = [idx for _, idx in ranked_scored[:n_sentences]]
+
+    # --- Deduplicated selection ---
+    # Walk top-ranked sentences; skip if >70% cosine similar to an already-selected one
+    SIMILARITY_THRESHOLD = 0.70
+    selected_indices = []
+    for _, idx in ranked:
+        if len(selected_indices) >= top_n:
+            break
+        # Check against already selected
+        is_duplicate = False
+        for sel_idx in selected_indices:
+            if sim_matrix[idx, sel_idx] > SIMILARITY_THRESHOLD:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            selected_indices.append(idx)
 
     # Chronological order for readability
-    chronological_indices = sorted(top_indices)
+    selected_indices.sort()
 
     summary = []
-    for i in chronological_indices:
+    for i in selected_indices:
         sent = sentences[i].strip()
         if not sent.endswith(('.', '!', '?', '"', "'")):
             sent += "."
