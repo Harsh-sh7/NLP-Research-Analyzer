@@ -1,0 +1,354 @@
+\documentclass[12pt, a4paper]{article}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=blue!70!black,
+    urlcolor=blue!70!black
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+% ---- Title ----
+\title{
+    \vspace{-1cm}
+    \textbf{NLP Research Analyzer} \\[0.3cm]
+    \large A Dual-Mode Document Clustering and Analysis System \\
+    Using TF-IDF and Semantic Embeddings
+}
+\author{
+    Harshit Shakya,  Kunal Vats,  Kaavya Gala,  Swagato Bauri 
+    \\[0.2cm]
+    \small Into to GenAI 
+}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ========================================================================
+\section{Problem Statement}
+% ========================================================================
+
+Given a heterogeneous collection of research documents in multiple formats (plain text and PDF), the challenge is to:
+
+\begin{enumerate}[nosep]
+    \item Quantify pairwise similarity between documents using both lexical and semantic approaches.
+    \item Automatically discover coherent thematic clusters without supervision or labelled data.
+    \item Extract representative keywords and generate extractive summaries for each cluster.
+    \item Surface latent topics across the entire corpus.
+    \item Provide interpretable, interactive visualizations for each analysis step.
+\end{enumerate}
+
+The system must operate without relying on generative AI, LLM APIs, or agentic frameworks. It offers two vectorization modes: a classical \textbf{TF-IDF baseline} for full explainability, and a \textbf{Semantic Embedding mode} (Sentence-BERT + PCA) for higher clustering accuracy.
+
+% ========================================================================
+\section{Data Description}
+% ========================================================================
+
+The system supports user-uploaded documents (\texttt{.txt} and \texttt{.pdf}) and ships with three built-in corpora:
+
+\subsection{Primary Research Corpus}
+Nine text documents across three distinct domains (three per domain):
+\begin{itemize}[nosep]
+    \item \textbf{Quantum Computing:} Qubit architectures, decoherence, Shor's and Grover's algorithms, quantum error correction.
+    \item \textbf{Cybersecurity:} Zero-trust architectures, ransomware operations, vulnerability management, MITRE ATT\&CK.
+    \item \textbf{Telemedicine:} Remote patient monitoring, wearable biosensors, healthcare policy and HIPAA compliance.
+\end{itemize}
+Each document uses heavily domain-specific technical vocabulary to ensure measurable inter-domain separation.
+
+\subsection{PDF Research Papers}
+Seven real academic papers spanning AI safety, generative agents, formula racing strategies, digital library navigation, and an outlier (Cricket Rule Book) to test clustering robustness.
+
+\subsection{Semantic Limitation Demo}
+Three short documents describing the \emph{same event} (online shopping) using entirely different vocabulary. This corpus exposes the fundamental limitation of lexical methods.
+
+% ========================================================================
+\section{Exploratory Data Analysis}
+% ========================================================================
+
+\subsection{Vocabulary Distribution}
+After preprocessing, the Primary Research Corpus yields approximately 1,400 unique tokens. Dynamic vocabulary scaling selects $\sim$840 features (60\% of unique vocabulary, bounded between 50 and 3,000) for the TF-IDF matrix.
+
+\subsection{Cosine Similarity Heatmap}
+Pairwise cosine similarity analysis reveals:
+\begin{itemize}[nosep]
+    \item Intra-domain pairs (e.g., \texttt{cyber\_01} vs.\ \texttt{cyber\_02}) exhibit similarity scores of $0.15$--$0.30$ in TF-IDF mode.
+    \item Inter-domain pairs (e.g., \texttt{cyber\_01} vs.\ \texttt{qc\_01}) show near-zero similarity ($< 0.05$).
+    \item The Semantic Limitation Demo confirms $\approx 0.0$ similarity between synonym-heavy documents, validating the lexical-only constraint.
+\end{itemize}
+
+\subsection{Silhouette Score Sweep}
+Evaluating silhouette scores for $k = 2, 3, \ldots, 8$ on the Primary Corpus:
+\begin{itemize}[nosep]
+    \item TF-IDF mode peaks at $k=3$ with a silhouette of $0.1533$.
+    \item Semantic mode peaks at $k=3$ with a silhouette of $\mathbf{0.9902}$.
+    \item Both modes correctly identify three as the optimal cluster count, matching the ground truth.
+\end{itemize}
+
+% ========================================================================
+\section{Methodology}
+% ========================================================================
+
+\subsection{Preprocessing Pipeline}
+Each document undergoes:
+\begin{enumerate}[nosep]
+    \item \textbf{Text Sanitization:} URL and email removal, hyphen splitting, optional numeric preservation.
+    \item \textbf{Tokenization:} NLTK \texttt{word\_tokenize}.
+    \item \textbf{POS-Aware Lemmatization:} WordNet lemmatizer with Treebank POS tag mapping:
+    \begin{equation}
+        \text{lemma}(w) = \texttt{WordNetLemmatizer}(w, \; \texttt{pos\_map}(\text{POS}(w)))
+    \end{equation}
+    \item \textbf{Stopword Removal:} NLTK English stopword list.
+\end{enumerate}
+
+\subsection{TF-IDF Vectorization}
+Documents are represented using Term Frequency--Inverse Document Frequency with sublinear scaling:
+\begin{equation}
+    \text{tf-idf}(t, d) = (1 + \log \text{tf}(t, d)) \times \log \frac{N}{\text{df}(t)}
+\end{equation}
+where $\text{tf}(t,d)$ is the raw count of term $t$ in document $d$, $\text{df}(t)$ is the number of documents containing $t$, and $N$ is the total document count. Parameters: \texttt{ngram\_range=(1,2)}, \texttt{norm='l2'}, \texttt{max\_df=0.85}.
+
+\subsection{Semantic Embeddings (SBERT + PCA)}
+In semantic mode, each document is encoded using a pre-trained Sentence-BERT model (\texttt{all-MiniLM-L6-v2}, 384 dimensions):
+\begin{enumerate}[nosep]
+    \item Split document into 384-character chunks: $\{c_1, c_2, \ldots, c_m\}$.
+    \item Encode each chunk: $\mathbf{e}_i = \text{SBERT}(c_i) \in \mathbb{R}^{384}$.
+    \item Compute weighted average with exponential decay:
+    \begin{equation}
+        \mathbf{v} = \frac{\sum_{i=1}^{m} w_i \, \mathbf{e}_i}{\sum_{i=1}^{m} w_i}, \quad w_i = e^{-0.15 \cdot (i-1)}
+    \end{equation}
+    \item L2-normalize: $\hat{\mathbf{v}} = \mathbf{v} / \|\mathbf{v}\|_2$.
+    \item Apply PCA to reduce from 384 to 2 dimensions, then L2-normalize again.
+\end{enumerate}
+This pipeline concentrates the dominant cluster signal while discarding noise dimensions.
+
+\subsection{Cosine Similarity}
+Pairwise document similarity is computed via the normalized dot product:
+\begin{equation}
+    \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \, \|\mathbf{b}\|}
+\end{equation}
+Cosine similarity is length-agnostic, meaning a 10-page and a 2-page paper on the same topic still score highly.
+
+\subsection{K-Means Clustering}
+Documents are grouped using K-Means++ initialization with 10 restarts:
+\begin{equation}
+    \underset{S}{\arg\min} \sum_{k=1}^{K} \sum_{\mathbf{x} \in S_k} \| \mathbf{x} - \boldsymbol{\mu}_k \|^2
+\end{equation}
+The optimal $k$ is selected by maximizing the \textbf{Silhouette Score}:
+\begin{equation}
+    s(i) = \frac{b(i) - a(i)}{\max(a(i),\; b(i))}
+\end{equation}
+where $a(i)$ is the mean intra-cluster distance and $b(i)$ is the mean nearest-cluster distance. Range: $[-1, 1]$; higher indicates better-defined clusters.
+
+\subsection{LDA Topic Modeling}
+Latent Dirichlet Allocation discovers hidden topics by modeling each document as a mixture of topics, and each topic as a distribution over words:
+\begin{equation}
+    p(w \mid d) = \sum_{k=1}^{K} p(w \mid z=k) \, p(z=k \mid d)
+\end{equation}
+Configured with batch learning, 20 iterations, and user-selectable topic count (2--6).
+
+\subsection{TextRank Extractive Summarization}
+Summaries are generated using the TextRank algorithm:
+\begin{enumerate}[nosep]
+    \item Build a sentence similarity graph $G = (V, E)$ where each node is a sentence and edge weights are cosine similarities of TF-IDF sentence vectors.
+    \item Apply PageRank to rank sentences by centrality:
+    \begin{equation}
+        \text{PR}(v_i) = (1-d) + d \sum_{v_j \in \text{In}(v_i)} \frac{w_{ji}}{\sum_{v_k \in \text{Out}(v_j)} w_{jk}} \, \text{PR}(v_j)
+    \end{equation}
+    where $d = 0.85$ is the damping factor.
+    \item Select the top-ranked sentences as the summary.
+\end{enumerate}
+Quality guards include: citation/reference line detection, math-noise filtering (single-character token ratio), and cosine-based near-duplicate removal (70\% similarity threshold).
+
+% ========================================================================
+\section{Evaluation}
+% ========================================================================
+
+Since this is an unsupervised system, traditional supervised metrics (accuracy, F1, precision, recall) do not directly apply. We evaluate using clustering quality metrics.
+
+\subsection{Silhouette Score Results}
+
+\begin{table}[H]
+\centering
+\caption{Clustering performance across corpora and vectorization modes.}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{Corpus} & \textbf{Mode} & \textbf{Silhouette ($k$)} & \textbf{Cluster Accuracy} \\
+\midrule
+Primary (9 docs) & Semantic (SBERT + PCA) & $\mathbf{0.9902}$ ($k=3$) & 100\% \\
+Primary (9 docs) & TF-IDF (Classical) & $0.1533$ ($k=3$) & 100\% \\
+PDF Papers (7 docs) & Semantic (SBERT + PCA) & $0.2482$ ($k=2$) & --- \\
+PDF Papers (7 docs) & TF-IDF (Classical) & $0.0713$ ($k=2$) & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Key observations:
+\begin{itemize}[nosep]
+    \item Semantic mode achieves a \textbf{6.5$\times$ improvement} over TF-IDF on the Primary Corpus.
+    \item Both modes produce \textbf{100\% correct cluster assignments} on the Primary Corpus, correctly separating Quantum Computing, Cybersecurity, and Telemedicine documents.
+    \item The intra-cluster to inter-cluster separation margin under semantic mode is \textbf{0.985}.
+\end{itemize}
+
+\subsection{Semantic Limitation Validation}
+The Semantic Limitation Demo corpus confirms that TF-IDF reports $\approx 0.0$ cosine similarity between documents describing the same event with different vocabulary. This validates the system's honest acknowledgment of lexical-only constraints and motivates the semantic embedding mode.
+
+% ========================================================================
+\section{Optimisation}
+% ========================================================================
+
+The following optimisation steps were implemented to improve model performance:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Dynamic Vocabulary Scaling:} TF-IDF \texttt{max\_features} is set to 60\% of unique vocabulary, bounded $[50, 3000]$, balancing feature richness and sparsity.
+    \item \textbf{Sublinear TF:} Applied $1 + \log(\text{tf})$ scaling to dampen the effect of very high raw counts and improve discriminative power.
+    \item \textbf{PCA Dimensionality Reduction:} Reduced 384-dimensional SBERT embeddings to 2 components via PCA, concentrating the dominant cluster signal and removing noise dimensions. This single step improved the silhouette score from $0.56$ to $0.99$.
+    \item \textbf{Exponential-Decay Chunk Weighting:} Earlier chunks (abstract, introduction) are weighted more heavily than later chunks ($w_i = e^{-0.15i}$), since opening sections carry the strongest topical signal.
+    \item \textbf{Domain-Specific Corpus Design:} Research documents were written with heavily domain-specific technical vocabulary (quantum gates, MITRE ATT\&CK, CPT codes) to maximise inter-domain separation.
+    \item \textbf{K-Means++ Initialisation:} Used \texttt{init='k-means++'} with \texttt{n\_init=10} for more stable cluster convergence.
+    \item \textbf{Summary Quality Guards:} Citation detection, math-noise filtering, and cosine-based deduplication (70\% threshold) ensure clean, diverse summaries.
+\end{enumerate}
+
+% ========================================================================
+\section{Architecture}
+% ========================================================================
+
+\begin{verbatim}
+                    +--------------------+
+                    |   Document Input   |
+                    |  (.txt / .pdf)     |
+                    +---------+----------+
+                              |
+                    +---------v----------+
+                    |   Preprocessing    |
+                    |  (sanitize, POS    |
+                    |   lemmatize, stop- |
+                    |   word removal)    |
+                    +---------+----------+
+                              |
+              +---------------+---------------+
+              |                               |
+    +---------v----------+       +------------v-----------+
+    |   TF-IDF Mode      |       |  Semantic Mode (SBERT) |
+    |  (bigrams, dynamic |       |  (chunk encode, decay  |
+    |   vocab, sublinear)|       |   weight, PCA reduce)  |
+    +---------+----------+       +------------+-----------+
+              |                               |
+              +---------------+---------------+
+                              |
+              +---------------+---------------+
+              |               |               |
+    +---------v---+  +--------v------+  +-----v--------+
+    |  K-Means    |  |  Similarity   |  |    LDA       |
+    |  Clustering |  |  Heatmap      |  |  Topic Model |
+    +------+------+  +--------+------+  +-----+--------+
+              |               |               |
+    +---------v---------------v---------------v--------+
+    |              Streamlit Dashboard                  |
+    |  (PCA scatter, silhouette chart, cluster cards,   |
+    |   keyword pills, TextRank summaries, doc modal)   |
+    +---------------------------------------------------+
+\end{verbatim}
+
+% ========================================================================
+\section{Tech Stack}
+% ========================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Component} & \textbf{Technology} \\
+\midrule
+Language & Python 3.11 \\
+Web Framework & Streamlit \\
+ML / Clustering & Scikit-learn (TF-IDF, K-Means, LDA, PCA, Silhouette) \\
+Semantic Embeddings & Sentence-Transformers (\texttt{all-MiniLM-L6-v2}) \\
+NLP Preprocessing & NLTK (tokenization, POS tagging, lemmatization) \\
+Summarization & NetworkX (PageRank for TextRank) \\
+Visualization & Plotly \\
+PDF Parsing & PyPDF \\
+Data Handling & Pandas, NumPy \\
+Version Control & Git + GitHub \\
+CI/CD & GitHub Actions (Pylint lint workflow) \\
+Code Quality & Pylint (score: 7.9/10) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ========================================================================
+\section{Limitations}
+% ========================================================================
+
+\begin{itemize}[nosep]
+    \item \textbf{TF-IDF -- Lexical Only:} Cannot recognise synonyms or paraphrases; ``automobile'' and ``car'' are treated as independent dimensions.
+    \item \textbf{TF-IDF -- Order Agnostic:} Bag-of-words representation ignores paragraph structure and discourse flow.
+    \item \textbf{Semantic Mode -- Model Dependency:} Requires the \texttt{all-MiniLM-L6-v2} model ($\sim$90\,MB download) and PyTorch as a runtime dependency.
+    \item \textbf{Scalability:} Very large corpora (thousands of documents) may degrade clustering quality due to high-dimensional sparsity in TF-IDF mode.
+\end{itemize}
+
+% ========================================================================
+\section{Team Contribution}
+% ========================================================================
+
+% UPDATE THIS SECTION with your actual team members and contributions.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lp{9cm}@{}}
+\toprule
+\textbf{Member} & \textbf{Contribution} \\
+\midrule
+Member 1 & Preprocessing pipeline, TF-IDF vectorization, corpus design \\
+Member 2 & K-Means clustering, silhouette analysis, PCA visualization \\
+Member 3 & Semantic embeddings (SBERT + PCA), optimization experiments \\
+Member 4 & TextRank summarization, LDA topic modeling, UI/Streamlit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ========================================================================
+\section{Conclusion}
+% ========================================================================
+
+The NLP Research Analyzer demonstrates that meaningful document clustering and analysis is achievable through a combination of classical NLP techniques and semantic embeddings. The dual-mode architecture allows users to compare lexical (TF-IDF) and semantic (SBERT) representations side by side.
+
+The semantic mode achieves a silhouette score of \textbf{0.9902} with 100\% correct cluster assignment on the Primary Research Corpus, representing a 6.5$\times$ improvement over the TF-IDF baseline. The built-in Semantic Limitation Demo transparently demonstrates the fundamental constraint of lexical methods, providing pedagogical value.
+
+The system is fully self-contained, requires no external APIs or generative AI, and provides interactive visualizations through a premium Streamlit interface.
+
+% ========================================================================
+\section*{References}
+% ========================================================================
+
+\begin{enumerate}[nosep, label={[\arabic*]}]
+    \item Salton, G., \& Buckley, C. (1988). Term-weighting approaches in automatic text retrieval. \textit{Information Processing \& Management}, 24(5), 513--523.
+    \item Mihalcea, R., \& Tarau, P. (2004). TextRank: Bringing Order into Texts. \textit{Proceedings of EMNLP}, 404--411.
+    \item Blei, D. M., Ng, A. Y., \& Jordan, M. I. (2003). Latent Dirichlet Allocation. \textit{Journal of Machine Learning Research}, 3, 993--1022.
+    \item Reimers, N., \& Gurevych, I. (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. \textit{Proceedings of EMNLP-IJCNLP}, 3982--3992.
+    \item Rousseeuw, P. J. (1987). Silhouettes: A graphical aid to the interpretation and validation of cluster analysis. \textit{Journal of Computational and Applied Mathematics}, 20, 53--65.
+    \item Arthur, D., \& Vassilvitskii, S. (2007). k-means++: The Advantages of Careful Seeding. \textit{Proceedings of ACM-SIAM SODA}, 1027--1035.
+    \item Page, L., Brin, S., Motwani, R., \& Winograd, T. (1999). The PageRank Citation Ranking: Bringing Order to the Web. \textit{Stanford InfoLab Technical Report}.
+    \item Bird, S., Klein, E., \& Loper, E. (2009). \textit{Natural Language Processing with Python}. O'Reilly Media.
+    \item Pedregosa, F., et al. (2011). Scikit-learn: Machine Learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825--2830.
+\end{enumerate}
+
+\end{document}
