@@ -14,6 +14,7 @@ from nltk.corpus import wordnet
 
 @st.cache_resource
 def download_nltk_data():
+    """Download required NLTK datasets (cached to avoid repeated downloads)."""
     nltk.download('stopwords', quiet=True)
     nltk.download('punkt', quiet=True)
     nltk.download('punkt_tab', quiet=True) 
@@ -45,6 +46,8 @@ def get_wordnet_pos(treebank_tag):
         return wordnet.NOUN # Default
 
 def sanitize_text(text, preserve_numeric=True):
+    """Clean raw text by removing URLs, emails, and special characters.
+    Optionally preserves numeric values, decimals, and percentage symbols."""
     text = str(text).lower()
     # Remove URLs
     text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
@@ -72,16 +75,20 @@ def sanitize_text(text, preserve_numeric=True):
     return text
 
 def tokenize_text(text):
+    """Split text into word tokens using NLTK word tokenizer."""
     return word_tokenize(text)
 
 def remove_stopwords(tokens):
+    """Remove common English stopwords from a list of tokens."""
     return [t for t in tokens if t not in STOPWORDS]
 
 def lemmatize_tokens(tokens):
+    """Apply POS-aware lemmatization using WordNet and Treebank POS tags."""
     pos_tags = nltk.pos_tag(tokens)
     return [lemmatizer.lemmatize(word, get_wordnet_pos(tag)) for word, tag in pos_tags]
 
 def execute_preprocessing_pipeline(text, preserve_numeric=True):
+    """Run the full NLP pipeline: sanitize, tokenize, lemmatize, remove stopwords."""
     cleaned = sanitize_text(text, preserve_numeric)
     tokens = tokenize_text(cleaned)
     tokens = lemmatize_tokens(tokens)

@@ -49,6 +49,7 @@ def compute_semantic_embeddings(raw_docs, chunk_size=384):
     return reduced
 
 def dynamic_max_features(docs):
+    """Calculate optimal TF-IDF vocabulary size as 60% of unique tokens, bounded [50, 3000]."""
     all_tokens = " ".join(docs).split()
     unique_vocab = len(set(all_tokens))
     
@@ -63,6 +64,7 @@ def dynamic_max_features(docs):
 
 
 def extract_tfidf_features(docs):
+    """Build a TF-IDF matrix with dynamic vocabulary, bigrams, and sublinear TF scaling."""
     n_docs = len(docs)
 
     if n_docs < 3:
@@ -87,9 +89,11 @@ def extract_tfidf_features(docs):
     return X, vectorizer
 
 def calculate_cosine_similarity(X):
+    """Compute pairwise cosine similarity matrix for the given feature matrix."""
     return cosine_similarity(X)
 
 def perform_kmeans_clustering(X, k=3):
+    """Run K-Means++ clustering and return cluster labels for each document."""
     if k == 1:
         return np.zeros(X.shape[0], dtype=int)
     model = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
@@ -97,6 +101,7 @@ def perform_kmeans_clustering(X, k=3):
     return labels
 
 def calculate_optimal_clusters(X, max_k=10):
+    """Evaluate silhouette scores for k=2..max_k and return (best_k, scores_dict)."""
     n_docs = X.shape[0]
 
     # We need at least 2 clusters and at most n_docs - 1
@@ -132,6 +137,7 @@ def calculate_optimal_clusters(X, max_k=10):
     return best_k, scores_per_k
 
 def identify_top_keywords(vectorizer, X, top_n=10):
+    """Extract the top-N highest TF-IDF terms for each document vector."""
     feature_names = np.array(vectorizer.get_feature_names_out())
     keywords = []
 
@@ -142,10 +148,12 @@ def identify_top_keywords(vectorizer, X, top_n=10):
     return keywords
 
 def perform_lda_modeling(X, n_topics=3):
+    """Fit a Latent Dirichlet Allocation model and return it for topic extraction."""
     lda = LatentDirichletAllocation(n_components=n_topics, random_state=42, max_iter=20, learning_method='batch')
     lda.fit(X)
     return lda
 
 def apply_dimensionality_reduction(X, n_components=2):
+    """Reduce feature matrix to n_components dimensions using Truncated SVD."""
     svd = TruncatedSVD(n_components=n_components, random_state=42)
     return svd.fit_transform(X)
