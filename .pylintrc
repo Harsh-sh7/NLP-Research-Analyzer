@@ -1,0 +1,24 @@
+[MASTER]
+load-plugins=pylint.extensions.docparams
+
+[MESSAGES CONTROL]
+disable=
+    C0114,  # missing-module-docstring
+    C0116,  # missing-function-docstring (we use selective docstrings)
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    W0401,  # wildcard-import (used for modeling.py star import)
+    W0614,  # unused-wildcard-import
+    E0401,  # import-error (Streamlit/torch may not be in lint env)
+    C0301,  # line-too-long (relaxed for readability)
+
+[FORMAT]
+max-line-length=120
+indent-string='    '
+
+[BASIC]
+good-names=X,k,i,j,s,n,df,ax,fig
+
+[DESIGN]
+max-args=8
+max-locals=20
