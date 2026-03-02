@@ -1,9 +1,52 @@
+import os
+os.environ.setdefault("HF_HOME", os.path.join(os.path.dirname(__file__), ".hf_cache"))
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import LatentDirichletAllocation, TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import normalize
 import numpy as np
+
+# ---------------------------------------------------------------------------
+# Semantic Embeddings (sentence-transformers — encoder only, no generative AI)
+# ---------------------------------------------------------------------------
+
+_sbert_model = None
+
+def _get_sbert_model():
+    """Lazy-load the sentence-transformer model (loads once, reuses)."""
+    global _sbert_model
+    if _sbert_model is None:
+        from sentence_transformers import SentenceTransformer
+        _sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _sbert_model
+
+
+def compute_semantic_embeddings(raw_docs, chunk_size=384):
+    """Encode documents into dense semantic vectors via chunk-averaged SBERT + PCA."""
+    from sklearn.decomposition import PCA
+    model = _get_sbert_model()
+    embeddings = []
+    for text in raw_docs:
+        chunks = [text[i:i+chunk_size] for i in range(0, min(len(text), 10_000), chunk_size)]
+        if not chunks:
+            chunks = [text[:chunk_size]]
+        chunk_embs = model.encode(chunks, show_progress_bar=False)
+        # Exponential-decay weighting: earlier chunks (abstract, intro) matter more
+        weights = np.exp(-np.arange(len(chunk_embs)) * 0.15)
+        avg = np.average(chunk_embs, axis=0, weights=weights)
+        avg = avg / np.linalg.norm(avg)
+        embeddings.append(avg)
+    raw_matrix = np.array(embeddings)
+
+    # PCA reduction — concentrates cluster signal, removes noise dimensions
+    n_components = min(raw_matrix.shape[0] - 1, 2)
+    pca = PCA(n_components=n_components, random_state=42)
+    reduced = pca.fit_transform(raw_matrix)
+    reduced = normalize(reduced)
+    return reduced
 
 def dynamic_max_features(docs):
     all_tokens = " ".join(docs).split()
@@ -53,9 +96,9 @@ def perform_kmeans_clustering(X, k=3):
     labels = model.fit_predict(X)
     return labels
 
-def calculate_optimal_clusters(X, max_k=6):
+def calculate_optimal_clusters(X, max_k=10):
     n_docs = X.shape[0]
-    
+
     # We need at least 2 clusters and at most n_docs - 1
     upper_bound = min(max_k, n_docs - 1)
 

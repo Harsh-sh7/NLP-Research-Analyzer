@@ -251,14 +251,14 @@ def _highlight_text(text, keywords, summary_sentences):
 @st.dialog("Detailed Analysis Report", width="large")
 def show_document_modal(doc_name, raw_text, cleaned_text, keywords, summary_sentences):
     st.markdown(
-        f"### 📄 {doc_name}\n\n"
+        f"### {doc_name}\n\n"
         "<span class='legend-badge legend-summary'>Summary Sentence</span>"
         "<span class='legend-badge legend-keyword'>Keyword</span>"
         "<hr style='margin: 12px 0; border-color: rgba(255,255,255,0.06);'>",
         unsafe_allow_html=True
     )
 
-    view_highlighted, view_original = st.tabs(["📝 Highlighted Analysis", "📄 Original Text"])
+    view_highlighted, view_original = st.tabs(["Highlighted Analysis", "Original Text"])
 
     with view_highlighted:
         highlighted = _highlight_text(cleaned_text, keywords, summary_sentences)
@@ -272,14 +272,14 @@ def show_document_modal(doc_name, raw_text, cleaned_text, keywords, summary_sent
 # Page Config & CSS Injection
 # ---------------------------------------------------------------------------
 
-st.set_page_config(layout="wide", page_title="NLP Research Analyzer", page_icon="🔬")
+st.set_page_config(layout="wide", page_title="NLP Research Analyzer")
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # Hero Banner
 st.markdown(
     """
     <div class='hero-banner'>
-        <h1>🔬 NLP Research Analyzer</h1>
+        <h1>NLP Research Analyzer</h1>
         <p>Uncover hidden themes, measure document similarity, and cluster research papers using classical NLP techniques.</p>
     </div>
     """,
@@ -290,16 +290,25 @@ st.markdown(
 # Sidebar
 # ---------------------------------------------------------------------------
 
-st.sidebar.markdown("## ⚙️ Configuration")
+st.sidebar.markdown("## Configuration")
 st.sidebar.caption("Fine-tune the analysis pipeline and choose your data source.")
+
+vectorization_mode = st.sidebar.radio(
+    "Vectorization Mode",
+    ["TF-IDF (Classical)", "Semantic Embeddings (SBERT)"],
+    index=0,
+    help="TF-IDF uses lexical word frequencies. Semantic Embeddings use a pre-trained encoder to capture meaning."
+)
+use_semantic = vectorization_mode == "Semantic Embeddings (SBERT)"
 
 preserve_numbers = st.sidebar.toggle(
     "Retain Numerical Data (e.g., statistics, years)",
-    value=True
+    value=True,
+    disabled=use_semantic
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 📁 Data Source")
+st.sidebar.markdown("### Data Source")
 
 CORPUS_OPTIONS = {
     "Upload My Own Files": None,
@@ -356,7 +365,7 @@ elif uploaded_files:
 # ---------------------------------------------------------------------------
 
 @st.cache_data
-def run_pipeline(raw_docs, preserve_numbers):
+def run_tfidf_pipeline(raw_docs, preserve_numbers):
     processed_docs = [
         execute_preprocessing_pipeline(doc, preserve_numeric=preserve_numbers)
         for doc in raw_docs
@@ -364,12 +373,28 @@ def run_pipeline(raw_docs, preserve_numbers):
     X, vectorizer = extract_tfidf_features(processed_docs)
     return processed_docs, X, vectorizer
 
+@st.cache_data
+def run_semantic_pipeline(raw_docs):
+    X_sem = compute_semantic_embeddings(raw_docs)
+    return X_sem
+
 
 if raw_docs:
-    with st.spinner("Vectorizing documents…"):
-        processed_docs, X, vectorizer = run_pipeline(raw_docs, preserve_numbers)
+    # Always run TF-IDF for keywords, summarization, and LDA
+    with st.spinner("Processing documents…"):
+        processed_docs, X_tfidf, vectorizer = run_tfidf_pipeline(raw_docs, preserve_numbers)
 
-    vocab_size = len(vectorizer.get_feature_names_out())
+    if use_semantic:
+        with st.spinner("Computing semantic embeddings (SBERT)…"):
+            X = run_semantic_pipeline(raw_docs)
+        feature_count = X.shape[1]
+        feature_label = "Embedding Dims"
+        engine_label = "SBERT + K-Means"
+    else:
+        X = X_tfidf
+        feature_count = len(vectorizer.get_feature_names_out())
+        feature_label = "Vocabulary Terms"
+        engine_label = "K-Means++"
 
     # -- Stat Cards --
     c1, c2, c3 = st.columns(3)
@@ -381,27 +406,27 @@ if raw_docs:
         )
     with c2:
         st.markdown(
-            f"<div class='stat-card'><div class='stat-value'>{vocab_size}</div>"
-            "<div class='stat-label'>Vocabulary Terms</div></div>",
+            f"<div class='stat-card'><div class='stat-value'>{feature_count}</div>"
+            f"<div class='stat-label'>{feature_label}</div></div>",
             unsafe_allow_html=True
         )
     with c3:
         st.markdown(
-            "<div class='stat-card'><div class='stat-value'>K-Means++</div>"
+            f"<div class='stat-card'><div class='stat-value'>{engine_label}</div>"
             "<div class='stat-label'>Clustering Engine</div></div>",
             unsafe_allow_html=True
         )
 
     st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["📊  Clustering Insights", "🧠  LDA Topic Modeling", "🔗  Similarity Matrix"])
+    tab1, tab2, tab3 = st.tabs(["Clustering Insights", "LDA Topic Modeling", "Similarity Matrix"])
 
     # ---------------------------------------------------------------
     # TAB 3 — Similarity Matrix
     # ---------------------------------------------------------------
     with tab3:
         st.subheader("Document Similarity (Cosine Matrix)")
-        with st.expander("ℹ️  How does Cosine Similarity work?"):
+        with st.expander("How does Cosine Similarity work?"):
             st.write(
                 "Cosine similarity measures the angle between two document vectors in TF-IDF space. "
                 "**1.0** = identical term distributions, **0.0** = nothing in common. "
@@ -422,7 +447,7 @@ if raw_docs:
     # ---------------------------------------------------------------
     with tab2:
         st.subheader("Topic Extraction via LDA")
-        with st.expander("ℹ️  What is LDA?"):
+        with st.expander("What is LDA?"):
             st.write(
                 "Latent Dirichlet Allocation discovers hidden 'topics' — each topic is a distribution "
                 "over words, and each document is a mixture of topics. Great for finding dominant themes "
@@ -433,7 +458,7 @@ if raw_docs:
             n_topics = st.slider("Number of Topics", min_value=2, max_value=min(6, len(raw_docs)), value=3, key="lda_slider")
 
             with st.spinner("Fitting LDA model…"):
-                lda_model = perform_lda_modeling(X, n_topics=n_topics)
+                lda_model = perform_lda_modeling(X_tfidf, n_topics=n_topics)
 
             feature_names = vectorizer.get_feature_names_out()
             for topic_idx, topic in enumerate(lda_model.components_):
@@ -450,7 +475,7 @@ if raw_docs:
     # ---------------------------------------------------------------
     with tab1:
         st.subheader("Semantic K-Means Clustering")
-        with st.expander("ℹ️  How does K-Means Clustering work?"):
+        with st.expander("How does K-Means Clustering work?"):
             st.write(
                 "K-Means partitions documents into *k* groups by minimising distance to cluster centroids. "
                 "We use the **Silhouette Score** (−1 to 1) to auto-suggest the best *k* — higher = better separation."
@@ -474,7 +499,7 @@ if raw_docs:
             k = st.slider(
                 "Number of Clusters (K-Means)",
                 min_value=1,
-                max_value=min(6, len(raw_docs)),
+                max_value=len(raw_docs),
                 value=suggested_k
             )
 
@@ -518,19 +543,19 @@ if raw_docs:
                         cluster_vectorizer, cluster_X, top_n=dynamic_top_n
                     )
 
-                    readable_clusters = [prepare_text_for_summary(c, preserve_numeric=preserve_numbers) for c in cluster_list]
-                    cluster_doc_counts = [sum(1 for lbl in labels if lbl == cid) for cid in range(k)]
-                    cluster_summaries = [
-                        generate_extractive_summary(
-                            readable_clusters[cid],
-                            cluster_vectorizer,
-                            top_n=max(4, min(10, cluster_doc_counts[cid] * 2))
-                        )
-                        for cid in range(k)
-                    ]
+                    # Per-document summaries within each cluster
+                    cluster_doc_summaries = {}
+                    for cid in range(k):
+                        doc_indices = [i for i, lbl in enumerate(labels) if lbl == cid]
+                        per_doc = []
+                        for idx in doc_indices:
+                            readable = prepare_text_for_summary(raw_docs[idx], preserve_numeric=preserve_numbers)
+                            sents = generate_extractive_summary(readable, cluster_vectorizer, top_n=2)
+                            per_doc.append((filenames[idx], sents))
+                        cluster_doc_summaries[cid] = per_doc
 
                 st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
-                st.subheader("📂 Cluster Insights")
+                st.subheader("Cluster Insights")
 
                 for cluster_id in range(k):
                     st.markdown(f"<div class='cluster-card'>", unsafe_allow_html=True)
@@ -542,51 +567,54 @@ if raw_docs:
                     )
                     st.markdown(f"**Keywords**<br>{pills_html}", unsafe_allow_html=True)
 
-                    # Summary as styled items
-                    summary_lines = cluster_summaries[cluster_id]
-                    if summary_lines:
-                        st.markdown("**Summary**", unsafe_allow_html=True)
-                        for sent in summary_lines:
-                            st.markdown(f"<div class='summary-item'>{sent}</div>", unsafe_allow_html=True)
+                    # Per-document summary — uniform styling
+                    st.markdown("**Summary**", unsafe_allow_html=True)
+                    for doc_name, sents in cluster_doc_summaries[cluster_id]:
+                        if sents:
+                            combined = " ".join(sents)
+                            st.markdown(
+                                f"<div class='summary-item'><strong>{doc_name}:</strong> {combined}</div>",
+                                unsafe_allow_html=True
+                            )
 
-                    # Document buttons — vertical list for long filenames
+                    # Document buttons
                     st.markdown("**Documents**")
                     cluster_docs_indices = [i for i, lbl in enumerate(labels) if lbl == cluster_id]
                     for idx in cluster_docs_indices:
                         doc_name = filenames[idx]
-                        if st.button(f"📄 {doc_name}", key=f"btn_cluster_{cluster_id}_{idx}", use_container_width=True):
+                        if st.button(doc_name, key=f"btn_cluster_{cluster_id}_{idx}", use_container_width=True):
                             cleaned_doc = prepare_text_for_summary(raw_docs[idx], preserve_numeric=preserve_numbers)
+                            doc_sents = [s for dn, ss in cluster_doc_summaries[cluster_id] if dn == doc_name for s in ss]
                             show_document_modal(
                                 doc_name, raw_docs[idx], cleaned_doc,
-                                cluster_keywords[cluster_id], cluster_summaries[cluster_id]
+                                cluster_keywords[cluster_id], doc_sents
                             )
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
             else:
-                st.subheader("📂 All Documents")
+                st.subheader("All Documents")
                 global_keywords = identify_top_keywords(vectorizer, X, top_n=8)
                 readable_docs = [prepare_text_for_summary(doc, preserve_numeric=preserve_numbers) for doc in raw_docs]
                 global_summaries = [generate_extractive_summary(doc, vectorizer, top_n=4) for doc in readable_docs]
                 for idx, doc_name in enumerate(filenames):
-                    if st.button(f"📄 {doc_name}", key=f"btn_all_{idx}"):
+                    if st.button(doc_name, key=f"btn_all_{idx}"):
                         show_document_modal(doc_name, raw_docs[idx], readable_docs[idx], global_keywords[idx], global_summaries[idx])
         else:
             st.warning("Upload at least 2 documents to view clustering.")
 
-            st.subheader("📂 All Documents")
+            st.subheader("All Documents")
             global_keywords = identify_top_keywords(vectorizer, X, top_n=8)
             readable_docs = [prepare_text_for_summary(doc, preserve_numeric=preserve_numbers) for doc in raw_docs]
             global_summaries = [generate_extractive_summary(doc, vectorizer, top_n=4) for doc in readable_docs]
             for idx, doc_name in enumerate(filenames):
-                if st.button(f"📄 {doc_name}", key=f"btn_single_{idx}"):
+                if st.button(doc_name, key=f"btn_single_{idx}"):
                     show_document_modal(doc_name, raw_docs[idx], readable_docs[idx], global_keywords[idx], global_summaries[idx])
 else:
     # Empty state
     st.markdown(
         """
         <div style='text-align:center; padding: 4rem 2rem; color: #64748b;'>
-            <p style='font-size: 3rem; margin-bottom: 0.5rem;'>📂</p>
             <h3 style='color: #94a3b8; font-weight: 500;'>No documents loaded</h3>
             <p>Select a sample corpus from the sidebar or upload your own files to get started.</p>
         </div>
