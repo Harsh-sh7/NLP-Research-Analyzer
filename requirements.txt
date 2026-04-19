@@ -8,3 +8,15 @@ numpy
 networkx
 matplotlib
 sentence-transformers
+langgraph
+langchain
+langchain-groq
+langchain-community
+langchain-huggingface
+faiss-cpu
+beautifulsoup4
+requests
+python-dotenv
+ddgs
+langchain-tavily
+tavily-python
