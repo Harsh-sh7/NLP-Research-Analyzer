@@ -157,7 +157,7 @@ def preload_corpus(
     target_dir = corpus_mapping.get(corpus_key)
     if not target_dir or not os.path.exists(target_dir):
         if corpus_key == "primary":
-            from create_corpus import generate_text_corpus
+            from backend.create_corpus import generate_text_corpus
             generate_text_corpus(os.path.join(workspace_root, "research_documents"))
             target_dir = os.path.join(workspace_root, "research_documents")
         else:

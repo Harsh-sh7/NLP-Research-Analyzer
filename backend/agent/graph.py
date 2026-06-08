@@ -1,10 +1,10 @@
 from langgraph.graph import StateGraph, END
-from agent.state import AgentState
-from agent.nodes.planner import planner_node
-from agent.nodes.researcher import researcher_node
-from agent.nodes.scraper import scraper_node
-from agent.nodes.synthesizer import synthesizer_node
-from agent.nodes.reviewer import reviewer_node
+from backend.agent.state import AgentState
+from backend.agent.nodes.planner import planner_node
+from backend.agent.nodes.researcher import researcher_node
+from backend.agent.nodes.scraper import scraper_node
+from backend.agent.nodes.synthesizer import synthesizer_node
+from backend.agent.nodes.reviewer import reviewer_node
 
 
 def review_decision(state):

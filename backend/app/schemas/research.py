@@ -2,8 +2,10 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
+
 class ResearchCreate(BaseModel):
     query: str
+
 
 class ReportOut(BaseModel):
     id: str
@@ -14,20 +16,15 @@ class ReportOut(BaseModel):
     citations: Dict[str, Any]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
 
 class ResearchJobOut(BaseModel):
     id: str
     query: str
     status: str
-    task_list: List[str]
+    task_list: List[Any]
     scraped_urls: List[str]
-    citations: Dict[str, str]
+    citations: Dict[str, Any]
     report_draft: str
     revision_count: int
     created_at: datetime
     report: Optional[ReportOut] = None
-
-    class Config:
-        from_attributes = True

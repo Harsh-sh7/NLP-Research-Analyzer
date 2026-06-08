@@ -1,5 +1,5 @@
 import time
-from agent.tools.search_tool import web_search
+from backend.agent.tools.search_tool import web_search
 
 
 def researcher_node(state):

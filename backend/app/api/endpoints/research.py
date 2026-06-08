@@ -19,6 +19,8 @@ router = APIRouter()
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _job_out(doc: dict) -> dict:
+    db = get_client()[settings.MONGODB_DB_NAME]
+    report_doc = db["reports"].find_one({"job_id": doc["_id"]})
     return {
         "id": doc["_id"],
         "user_id": doc["user_id"],
@@ -30,6 +32,7 @@ def _job_out(doc: dict) -> dict:
         "report_draft": doc.get("report_draft", ""),
         "revision_count": doc.get("revision_count", 0),
         "created_at": doc["created_at"],
+        "report": _report_out(report_doc) if report_doc else None,
     }
 
 

@@ -95,11 +95,13 @@ cd NLP-Research-Analyzer
 
 ### 2. Configure API Keys
 
+Copy the template env file inside the `backend/` folder and fill in your API keys:
+
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-Edit `.env`:
+Edit `backend/.env`:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here       # https://console.groq.com/
@@ -111,13 +113,17 @@ SECRET_KEY=your_random_jwt_secret_here
 
 ### 3. Run the Backend
 
+Create the virtual environment inside the `backend/` folder, install the requirements, and run the server:
+
 ```bash
-python3 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+# Run from the project root directory:
+backend/.venv/bin/python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Backend is live at **http://localhost:8000**
@@ -158,9 +164,10 @@ App is live at **http://localhost:5173**
 
 ```
 NLP-Research-Analyzer/
-├── .env.example                    # API key template
-├── DEPLOY.md                       # Full deployment guide
+├── README.md                       # Project overview & documentation
 ├── backend/
+│   ├── .env.example                # API key template
+│   ├── DEPLOY.md                   # Full deployment guide
 │   ├── requirements.txt            # Python dependencies
 │   └── app/
 │       ├── main.py                 # FastAPI application entry point

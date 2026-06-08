@@ -8,9 +8,9 @@ WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname
 if WORKSPACE_ROOT not in sys.path:
     sys.path.append(WORKSPACE_ROOT)
 
-import preprocessing
-import modeling
-import utils
+from backend import preprocessing
+from backend import modeling
+from backend import utils
 
 class NLPService:
     @staticmethod
@@ -160,11 +160,14 @@ class NLPService:
                 "documents": cluster_docs
             })
             
+        # Convert keys in scores_per_k to strings for MongoDB compatibility
+        scores_per_k_str = {str(k_val): val for k_val, val in scores_per_k.items()}
+
         return {
             "vectorization_mode": vectorization_mode,
             "k_clusters": k,
             "suggested_k": suggested_k,
-            "scores_per_k": scores_per_k,
+            "scores_per_k": scores_per_k_str,
             "pca_scatter": pca_data,
             "similarity": similarity_data,
             "topics": topics,

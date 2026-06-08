@@ -22,11 +22,8 @@ build/
 *.db
 *.sqlite
 *.sqlite3
-sql_app.db
 
 # ─── User-uploaded files (runtime data) ──────────────
-backend/uploads/*
-!backend/uploads/.gitkeep
 uploads/*
 !uploads/.gitkeep
 
@@ -35,17 +32,6 @@ uploads/*
 faiss_index/
 *.faiss
 *.index
-
-# ─── Streamlit ───────────────────────────────────────
-.streamlit/
-
-# ─── Node / Frontend ─────────────────────────────────
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-frontend/.env
-frontend/.env.local
-frontend/.env.*.local
 
 # ─── OS ──────────────────────────────────────────────
 .DS_Store
@@ -60,7 +46,3 @@ Thumbs.db
 # ─── Logs ────────────────────────────────────────────
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*

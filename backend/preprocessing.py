@@ -1,5 +1,4 @@
 import nltk
-import streamlit as st
 import ssl
 
 try:
@@ -12,7 +11,6 @@ else:
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
-@st.cache_resource
 def download_nltk_data():
     """Download required NLTK datasets (cached to avoid repeated downloads)."""
     nltk.download('stopwords', quiet=True)

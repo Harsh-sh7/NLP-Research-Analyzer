@@ -1,4 +1,4 @@
-from agent.tools.scrape_tool import scrape_url, chunk_text, retrieve_relevant_chunks
+from backend.agent.tools.scrape_tool import scrape_url, chunk_text, retrieve_relevant_chunks
 
 
 def scraper_node(state):

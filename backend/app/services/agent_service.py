@@ -12,7 +12,7 @@ WORKSPACE_ROOT = os.path.dirname(
 if WORKSPACE_ROOT not in sys.path:
     sys.path.append(WORKSPACE_ROOT)
 
-from agent.graph import build_graph
+from backend.agent.graph import build_graph
 from backend.app.db.session import get_client
 from backend.app.core.config import settings
 
