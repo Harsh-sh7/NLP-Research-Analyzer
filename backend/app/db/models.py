@@ -1,80 +1,68 @@
+"""
+MongoDB document shape definitions.
+
+These are plain typed dicts used for documentation and type-checking only.
+PyMongo stores and retrieves plain Python dicts — no ORM magic needed.
+
+Each collection stores documents with the following fields:
+
+users:
+  _id         : str  (UUID string)
+  email       : str  (unique)
+  username    : str
+  password_hash: str
+  created_at  : datetime
+
+documents:
+  _id         : str  (UUID string)
+  user_id     : str  (ref → users._id)
+  filename    : str
+  file_path   : str
+  content     : str  (extracted text)
+  file_size   : int  (bytes)
+  created_at  : datetime
+
+analysis_jobs:
+  _id                : str  (UUID string)
+  user_id            : str  (ref → users._id)
+  document_ids       : list[str]
+  vectorization_mode : str
+  parameters         : dict
+  results            : dict
+  created_at         : datetime
+
+research_jobs:
+  _id            : str  (UUID string)
+  user_id        : str  (ref → users._id)
+  query          : str
+  status         : str  ("pending" | "running" | "completed" | "failed")
+  task_list      : list
+  scraped_urls   : list
+  citations      : dict
+  report_draft   : str
+  revision_count : int
+  created_at     : datetime
+
+reports:
+  _id        : str  (UUID string)
+  job_id     : str  (ref → research_jobs._id, unique)
+  user_id    : str  (ref → users._id)
+  title      : str
+  content    : str
+  metrics    : dict
+  citations  : dict
+  created_at : datetime
+"""
+
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, JSON
-from sqlalchemy.orm import relationship
-from backend.app.db.session import Base
 
-def generate_uuid():
+
+def new_id() -> str:
+    """Generate a new UUID4 string to use as a MongoDB document _id."""
     return str(uuid.uuid4())
 
-class User(Base):
-    __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    username = Column(String, index=True, nullable=True)
-    password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
-    nlp_jobs = relationship("AnalysisJob", back_populates="user", cascade="all, delete-orphan")
-    research_jobs = relationship("ResearchJob", back_populates="user", cascade="all, delete-orphan")
-    reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")
-
-class Document(Base):
-    __tablename__ = "documents"
-
-    id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    filename = Column(String, nullable=False)
-    file_path = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    file_size = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="documents")
-
-class AnalysisJob(Base):
-    __tablename__ = "analysis_jobs"
-
-    id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    document_ids = Column(JSON, nullable=False)  # List of document UUIDs analyzed
-    vectorization_mode = Column(String, nullable=False)  # TF-IDF vs SBERT
-    parameters = Column(JSON, nullable=False)  # Preprocessing and model parameters
-    results = Column(JSON, nullable=False)  # Heatmap, PCA coords, cluster keywords, summaries
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="nlp_jobs")
-
-class ResearchJob(Base):
-    __tablename__ = "research_jobs"
-
-    id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    query = Column(String, nullable=False)
-    status = Column(String, default="pending", nullable=False)
-    task_list = Column(JSON, default=list, nullable=False)
-    scraped_urls = Column(JSON, default=list, nullable=False)
-    citations = Column(JSON, default=dict, nullable=False)
-    report_draft = Column(Text, default="", nullable=False)
-    revision_count = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="research_jobs")
-    report = relationship("Report", back_populates="job", uselist=False, cascade="all, delete-orphan")
-
-class Report(Base):
-    __tablename__ = "reports"
-
-    id = Column(String, primary_key=True, default=generate_uuid, index=True)
-    job_id = Column(String, ForeignKey("research_jobs.id", ondelete="CASCADE"), unique=True, nullable=False)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    title = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    metrics = Column(JSON, nullable=False)
-    citations = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="reports")
-    job = relationship("ResearchJob", back_populates="report")
+def now() -> datetime:
+    """Return current UTC datetime."""
+    return datetime.utcnow()

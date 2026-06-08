@@ -18,9 +18,8 @@ else:
 def _parse_cors_origins() -> List[str]:
     """
     Build the CORS allowed-origins list.
-    In production, set FRONTEND_URL to your deployed frontend origin
-    (e.g. https://your-app.vercel.app).  Multiple origins can be
-    provided as a comma-separated string.
+    In production, set FRONTEND_URL to your deployed frontend origin.
+    Multiple origins can be provided as a comma-separated string.
     """
     defaults = [
         "http://localhost:5173",
@@ -32,7 +31,6 @@ def _parse_cors_origins() -> List[str]:
     env_val = os.getenv("FRONTEND_URL", "")
     if env_val:
         extra = [o.strip() for o in env_val.split(",") if o.strip()]
-        # Merge, deduplicate, preserve order
         seen = set(defaults)
         for origin in extra:
             if origin not in seen:
@@ -55,10 +53,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # ── Database ──────────────────────────────────────────────────────────────
-    # Defaults to SQLite for development. Set DATABASE_URL to a PostgreSQL
-    # connection string for production.
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
+    # ── MongoDB ───────────────────────────────────────────────────────────────
+    # Local:  mongodb://localhost:27017
+    # Atlas:  mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority
+    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+    MONGODB_DB_NAME: str = os.getenv("MONGODB_DB_NAME", "nlp_research")
 
     # ── Redis (Optional) ──────────────────────────────────────────────────────
     REDIS_URL: str = os.getenv("REDIS_URL", "")
@@ -69,7 +68,6 @@ class Settings(BaseSettings):
     )
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    # Reads from FRONTEND_URL env var. Extend defaults for local dev ports.
     BACKEND_CORS_ORIGINS: List[str] = _parse_cors_origins()
 
     # ── Third-Party APIs ──────────────────────────────────────────────────────

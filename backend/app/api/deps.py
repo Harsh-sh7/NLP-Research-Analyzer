@@ -1,22 +1,22 @@
-from typing import Generator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
-from backend.app.db.models import User
 from backend.app.schemas.user import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
+
 def get_current_user(
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
     token: str = Depends(oauth2_scheme)
-) -> User:
+) -> dict:
+    """Decode the JWT and return the corresponding MongoDB user document."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -32,8 +32,8 @@ def get_current_user(
         token_data = TokenData(user_id=user_id)
     except JWTError:
         raise credentials_exception
-        
-    user = db.query(User).filter(User.id == token_data.user_id).first()
+
+    user = db["users"].find_one({"_id": token_data.user_id})
     if user is None:
         raise credentials_exception
     return user

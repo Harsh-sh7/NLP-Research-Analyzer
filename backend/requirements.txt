@@ -1,31 +1,42 @@
 fastapi
 uvicorn[standard]
 websockets
-sqlalchemy
 pydantic>=2.0
-email-validator
 pydantic-settings
+email-validator
+
+# Auth
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
-redis
+
+# MongoDB
+pymongo[srv]
+
+# NLP / ML
 faiss-cpu
 scikit-learn
 nltk
-pypdf
 sentence-transformers
+numpy
+pandas
+
+# Documents
+pypdf
+beautifulsoup4
+requests
+
+# Agent / LLM
 langgraph
 langchain
 langchain-groq
 langchain-community
 langchain-huggingface
-tavily-python
 langchain-tavily
+tavily-python
+
+# Utilities
 python-dotenv
 networkx
 plotly
-pandas
-numpy
 matplotlib
-beautifulsoup4
-requests
