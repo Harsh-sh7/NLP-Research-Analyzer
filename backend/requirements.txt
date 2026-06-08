@@ -14,7 +14,6 @@ python-multipart
 pymongo[srv]
 
 # NLP / ML
-faiss-cpu
 scikit-learn
 nltk
 sentence-transformers
@@ -31,7 +30,6 @@ langgraph
 langchain
 langchain-groq
 langchain-community
-langchain-huggingface
 langchain-tavily
 tavily-python
 
@@ -40,3 +38,4 @@ python-dotenv
 networkx
 plotly
 matplotlib
+

@@ -26,27 +26,35 @@ def _get_sbert_model():
 
 def compute_semantic_embeddings(raw_docs, chunk_size=384):
     """Encode documents into dense semantic vectors via chunk-averaged SBERT + PCA."""
-    from sklearn.decomposition import PCA
-    model = _get_sbert_model()
-    embeddings = []
-    for text in raw_docs:
-        chunks = [text[i:i+chunk_size] for i in range(0, min(len(text), 10_000), chunk_size)]
-        if not chunks:
-            chunks = [text[:chunk_size]]
-        chunk_embs = model.encode(chunks, show_progress_bar=False)
-        # Exponential-decay weighting: earlier chunks (abstract, intro) matter more
-        weights = np.exp(-np.arange(len(chunk_embs)) * 0.15)
-        avg = np.average(chunk_embs, axis=0, weights=weights)
-        avg = avg / np.linalg.norm(avg)
-        embeddings.append(avg)
-    raw_matrix = np.array(embeddings)
+    try:
+        from sklearn.decomposition import PCA
+        model = _get_sbert_model()
+        embeddings = []
+        for text in raw_docs:
+            chunks = [text[i:i+chunk_size] for i in range(0, min(len(text), 10_000), chunk_size)]
+            if not chunks:
+                chunks = [text[:chunk_size]]
+            chunk_embs = model.encode(chunks, show_progress_bar=False)
+            # Exponential-decay weighting: earlier chunks (abstract, intro) matter more
+            weights = np.exp(-np.arange(len(chunk_embs)) * 0.15)
+            avg = np.average(chunk_embs, axis=0, weights=weights)
+            avg = avg / np.linalg.norm(avg)
+            embeddings.append(avg)
+        raw_matrix = np.array(embeddings)
 
-    # PCA reduction — concentrates cluster signal, removes noise dimensions
-    n_components = min(raw_matrix.shape[0] - 1, 2)
-    pca = PCA(n_components=n_components, random_state=42)
-    reduced = pca.fit_transform(raw_matrix)
-    reduced = normalize(reduced)
-    return reduced
+        # PCA reduction — concentrates cluster signal, removes noise dimensions
+        n_components = min(raw_matrix.shape[0] - 1, 2)
+        pca = PCA(n_components=n_components, random_state=42)
+        reduced = pca.fit_transform(raw_matrix)
+        reduced = normalize(reduced)
+        return reduced
+    except Exception as e:
+        print(f"⚠️ SBERT embedding failed/OOM: {e}. Falling back to TF-IDF LSA (Latent Semantic Analysis).")
+        # Fallback to LSA (TF-IDF + SVD) which uses almost no memory
+        X, vectorizer = extract_tfidf_features(raw_docs)
+        reduced = apply_dimensionality_reduction(X, n_components=2)
+        return normalize(reduced)
+
 
 def dynamic_max_features(docs):
     """Calculate optimal TF-IDF vocabulary size as 60% of unique tokens, bounded [50, 3000]."""

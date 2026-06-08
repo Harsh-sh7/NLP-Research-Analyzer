@@ -1,18 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-
-_embeddings = None
-
-
-def get_embeddings():
-    global _embeddings
-    if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    return _embeddings
-
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 def scrape_url(url: str) -> str:
     try:
@@ -44,8 +34,20 @@ def chunk_text(text: str, chunk_size: int = 400) -> list[str]:
 def retrieve_relevant_chunks(texts: list[str], query: str, k: int = 3) -> list[str]:
     if not texts:
         return []
-    embeddings = get_embeddings()
-    docs = [Document(page_content=t) for t in texts]
-    store = FAISS.from_documents(docs, embeddings)
-    results = store.similarity_search(query, k=min(k, len(docs)))
-    return [r.page_content for r in results]
+    
+    # Vectorize texts and query using scikit-learn (extremely fast and memory efficient)
+    try:
+        vectorizer = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = vectorizer.fit_transform(texts)
+        query_vec = vectorizer.transform([query])
+        
+        # Compute cosine similarity
+        similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
+        
+        # Sort and select top k
+        top_indices = np.argsort(similarities)[::-1][:k]
+        return [texts[i] for i in top_indices]
+    except Exception:
+        # Fallback to returning the first k chunks if vectorization fails
+        return texts[:k]
+
