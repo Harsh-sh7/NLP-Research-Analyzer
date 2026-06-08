@@ -1,0 +1,2 @@
+# This file keeps the uploads/ directory in version control.
+# The directory itself is gitignored — user-uploaded files are never committed.

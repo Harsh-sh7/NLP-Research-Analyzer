@@ -1,33 +1,66 @@
-# Virtual environment
+# ─── Python ──────────────────────────────────────────
 venv/
 .venv/
 env/
-
-# Python cache
 __pycache__/
 *.py[cod]
 *.pyo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# HuggingFace model cache
-.hf_cache/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Streamlit cache
-.streamlit/
-
-# Distribution
+*.pyd
 *.egg-info/
+.eggs/
 dist/
 build/
 
-# Environment Variables
+# ─── Environment / Secrets ───────────────────────────
 .env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ─── Database files ──────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+sql_app.db
+
+# ─── User-uploaded files (runtime data) ──────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# ─── ML / AI caches ──────────────────────────────────
+.hf_cache/
+faiss_index/
+*.faiss
+*.index
+
+# ─── Streamlit ───────────────────────────────────────
+.streamlit/
+
+# ─── Node / Frontend ─────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ─── OS ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ─── IDE ─────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ─── Logs ────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
