@@ -199,14 +199,20 @@ docker compose up --build
 > const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api"
 > ```
 
-### Option B: Deploy Backend on Railway / Render
+### Option B: Deploy Backend on Railway / Render (Free Tier Optimized)
 
-1. Go to [railway.app](https://railway.app) or [render.com](https://render.com)
-2. Create a new Web Service from your GitHub repo
-3. Set the **Start Command**: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
-4. Add all your environment variables (GROQ_API_KEY, TAVILY_API_KEY, SECRET_KEY, DATABASE_URL)
-5. Set **Root Directory** to `.` (project root)
-6. For PostgreSQL, provision a managed database from the same platform and use its connection URL as `DATABASE_URL`
+Because Render and Railway free tiers are constrained to **512 MB of RAM**, installing standard machine learning dependencies like `sentence-transformers` (which pulls in PyTorch with CUDA) will cause **Out Of Memory (OOM) build/runtime crashes**.
+
+To prevent this, use the optimized production requirements file:
+
+1. Go to [render.com](https://render.com) or [railway.app](https://railway.app).
+2. Create a new **Web Service** from your GitHub repo.
+3. Configure the following build settings:
+   - **Root Directory**: `.` (project root)
+   - **Build Command**: `pip install -r backend/requirements-prod.txt` (This skips PyTorch/SBERT, using the lightweight TF-IDF LSA fallback for document analysis instead, keeping RAM usage < 100MB).
+   - **Start Command**: `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`
+4. Add all your environment variables (GROQ_API_KEY, TAVILY_API_KEY, SECRET_KEY, etc.).
+5. For PostgreSQL, provision a managed database from the same platform and use its connection URL as `DATABASE_URL`.
 
 ### Option C: Deploy on a VPS (Ubuntu)
 

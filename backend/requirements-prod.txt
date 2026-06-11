@@ -1,0 +1,39 @@
+fastapi
+uvicorn[standard]
+websockets
+pydantic>=2.0
+pydantic-settings
+email-validator
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# MongoDB
+pymongo[srv]
+
+# NLP / ML
+scikit-learn
+nltk
+numpy
+pandas
+
+# Documents
+pypdf
+beautifulsoup4
+requests
+
+# Agent / LLM
+langgraph
+langchain
+langchain-groq
+langchain-community
+langchain-tavily
+tavily-python
+
+# Utilities
+python-dotenv
+networkx
+plotly
+matplotlib
