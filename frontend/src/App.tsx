@@ -15,7 +15,8 @@ import {
   Moon, 
   LogOut,
   LogIn,
-  Home
+  Home,
+  Loader2
 } from "lucide-react"
 
 export default function App() {
@@ -25,6 +26,9 @@ export default function App() {
   // Dynamic Cursor Glow position tracking
   const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 })
   const [isVisible, setIsVisible] = useState(false)
+
+  // Backend status tracking for wake-up notice
+  const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "sleeping" | "error">("checking")
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -48,6 +52,54 @@ export default function App() {
       window.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseleave", handleMouseLeave)
       document.removeEventListener("mouseenter", handleMouseEnter)
+    }
+  }, [])
+
+  // Ping backend to wake it up and keep it warm
+  useEffect(() => {
+    const backendRoot = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/api$/, "")
+    let isMounted = true
+    let sleepingTimeout: NodeJS.Timeout
+
+    const pingBackend = async () => {
+      // Show "waking up" warning if backend doesn't respond in 1.5 seconds
+      if (backendStatus !== "online") {
+        sleepingTimeout = setTimeout(() => {
+          if (isMounted) setBackendStatus("sleeping")
+        }, 1500)
+      }
+
+      try {
+        const res = await fetch(`${backendRoot}/`, { mode: "cors" })
+        if (res.ok) {
+          if (isMounted) {
+            setBackendStatus("online")
+            clearTimeout(sleepingTimeout)
+          }
+        } else {
+          throw new Error("Backend offline")
+        }
+      } catch (err) {
+        console.warn("Backend connection check failed:", err)
+        if (isMounted) {
+          // If we were already in "sleeping" state, keep it. Otherwise, flag as connection error.
+          setBackendStatus(prev => prev === "sleeping" ? "sleeping" : "error")
+          clearTimeout(sleepingTimeout)
+        }
+      }
+    }
+
+    pingBackend()
+
+    // Keep-alive ping every 3 minutes to prevent Render spin-down
+    const interval = setInterval(() => {
+      pingBackend()
+    }, 180000)
+
+    return () => {
+      isMounted = false
+      clearTimeout(sleepingTimeout)
+      clearInterval(interval)
     }
   }, [])
 
@@ -211,6 +263,38 @@ export default function App() {
             : "radial-gradient(circle, rgba(59, 130, 246, 0.07) 0%, rgba(99, 102, 241, 0.02) 45%, rgba(0, 0, 0, 0) 70%)",
         }}
       />
+
+      {/* Backend Spin-up Notifier */}
+      {backendStatus === "sleeping" && (
+        <div className="fixed bottom-6 right-6 z-[99999] max-w-sm p-4 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/85 dark:bg-zinc-950/85 backdrop-blur-xl shadow-xl shadow-blue-500/5 flex gap-3.5 items-start transition-all duration-300">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 text-blue-600 dark:text-blue-400">
+            <Loader2 className="w-4.5 h-4.5 animate-spin" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">Connecting to Service...</h4>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+              This app is waking up from a deep sleep on Render's free tier. This typically takes 30-50 seconds.
+            </p>
+            <div className="w-full bg-zinc-100 dark:bg-zinc-900 h-1 rounded-full mt-2.5 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full animate-[loading_45s_ease-out_infinite]" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {backendStatus === "error" && (
+        <div className="fixed bottom-6 right-6 z-[99999] max-w-sm p-4 rounded-2xl border border-red-200/50 dark:border-red-900/50 bg-red-50/90 dark:bg-red-950/40 backdrop-blur-xl shadow-xl flex gap-3.5 items-start transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
+          <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/20 text-red-600 dark:text-red-400">
+            <span className="text-sm">⚠️</span>
+          </div>
+          <div className="flex-1">
+            <h4 className="text-xs font-semibold text-red-900 dark:text-red-200">Connection Error</h4>
+            <p className="text-[11px] text-red-700/80 dark:text-red-400/80 mt-1 leading-relaxed">
+              Could not reach the backend. If you recently deployed, check your Render CORS `FRONTEND_URL` variable, or wait a minute for startup.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Viewport */}
       <main className="flex-1 flex flex-col relative">
