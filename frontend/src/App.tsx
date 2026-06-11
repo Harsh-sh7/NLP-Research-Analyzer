@@ -59,7 +59,7 @@ export default function App() {
   useEffect(() => {
     const backendRoot = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/api$/, "")
     let isMounted = true
-    let sleepingTimeout: NodeJS.Timeout
+    let sleepingTimeout: any
 
     const pingBackend = async () => {
       // Show "waking up" warning if backend doesn't respond in 1.5 seconds
