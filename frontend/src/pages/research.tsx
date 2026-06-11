@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useResearchStore, ResearchJob, Report } from "@/store/researchStore"
 import { useAuthStore } from "@/store/authStore"
-import { api } from "@/lib/api"
+import { api, API_BASE } from "@/lib/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -98,7 +98,9 @@ export default function ResearchWorkspace() {
   const connectWebSocket = (jobId: string) => {
     if (ws) ws.close()
 
-    const wsUrl = `ws://localhost:8000/api/research/ws/${jobId}?token=${token}`
+    const wsProto = API_BASE.startsWith("https:") ? "wss:" : "ws:"
+    const wsBase = API_BASE.replace(/^https?:\/\//i, "")
+    const wsUrl = `${wsProto}//${wsBase}/research/ws/${jobId}?token=${token}`
     const socket = new WebSocket(wsUrl)
 
     socket.onopen = () => {

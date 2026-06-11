@@ -9,6 +9,7 @@ interface UIState {
   sidebarCollapsed: boolean
   activeDocId: string | null
   activeDocAnalysis: any | null
+  backendStatus: "checking" | "online" | "sleeping" | "error"
   
   setPage: (page: PageType) => void
   toggleTheme: () => void
@@ -16,6 +17,7 @@ interface UIState {
   setSidebarCollapsed: (collapsed: boolean) => void
   openDocAnalysis: (docId: string, analysis: any) => void
   closeDocAnalysis: () => void
+  setBackendStatus: (status: "checking" | "online" | "sleeping" | "error") => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -24,6 +26,7 @@ export const useUIStore = create<UIState>((set) => ({
   sidebarCollapsed: false,
   activeDocId: null,
   activeDocAnalysis: null,
+  backendStatus: "checking",
   
   setPage: (currentPage) => set({ currentPage }),
   toggleTheme: () => set((state) => {
@@ -39,5 +42,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
   openDocAnalysis: (activeDocId, activeDocAnalysis) => set({ activeDocId, activeDocAnalysis }),
-  closeDocAnalysis: () => set({ activeDocId: null, activeDocAnalysis: null })
+  closeDocAnalysis: () => set({ activeDocId: null, activeDocAnalysis: null }),
+  setBackendStatus: (backendStatus) => set({ backendStatus })
 }))
+

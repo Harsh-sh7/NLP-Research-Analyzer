@@ -20,15 +20,13 @@ import {
 } from "lucide-react"
 
 export default function App() {
-  const { currentPage, setPage, theme, toggleTheme } = useUIStore()
+  const { currentPage, setPage, theme, toggleTheme, backendStatus, setBackendStatus } = useUIStore()
   const { user, setUser, token, isAuthenticated, logout } = useAuthStore()
 
   // Dynamic Cursor Glow position tracking
   const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 })
   const [isVisible, setIsVisible] = useState(false)
 
-  // Backend status tracking for wake-up notice
-  const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "sleeping" | "error">("checking")
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -62,8 +60,9 @@ export default function App() {
     let sleepingTimeout: any
 
     const pingBackend = async () => {
+      const currentStatus = useUIStore.getState().backendStatus
       // Show "waking up" warning if backend doesn't respond in 1.5 seconds
-      if (backendStatus !== "online") {
+      if (currentStatus !== "online") {
         sleepingTimeout = setTimeout(() => {
           if (isMounted) setBackendStatus("sleeping")
         }, 1500)
@@ -82,8 +81,9 @@ export default function App() {
       } catch (err) {
         console.warn("Backend connection check failed:", err)
         if (isMounted) {
+          const latestStatus = useUIStore.getState().backendStatus
           // If we were already in "sleeping" state, keep it. Otherwise, flag as connection error.
-          setBackendStatus(prev => prev === "sleeping" ? "sleeping" : "error")
+          setBackendStatus(latestStatus === "sleeping" ? "sleeping" : "error")
           clearTimeout(sleepingTimeout)
         }
       }

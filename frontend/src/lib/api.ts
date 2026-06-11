@@ -1,3 +1,5 @@
+import { useUIStore } from "@/store/uiStore"
+
 const getApiBase = () => {
   let url = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").trim().replace(/\/+$/, "")
   if (!url.endsWith("/api")) {
@@ -5,7 +7,7 @@ const getApiBase = () => {
   }
   return url
 }
-const API_BASE = getApiBase()
+export const API_BASE = getApiBase()
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("token")
@@ -20,22 +22,34 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json")
   }
   
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers
-  })
-  
-  if (response.status === 204) {
-    return null as unknown as T
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers
+    })
+    
+    // Any successful HTTP response means the backend is online!
+    useUIStore.getState().setBackendStatus("online")
+    
+    if (response.status === 204) {
+      return null as unknown as T
+    }
+    
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.detail || "Something went wrong")
+    }
+    
+    return data as T
+  } catch (err: any) {
+    // If it's a network error (like CORS blocked or server offline), set status to error
+    if (err instanceof TypeError || (err.message && err.message.toLowerCase().includes("failed to fetch"))) {
+      useUIStore.getState().setBackendStatus("error")
+    }
+    throw err
   }
-  
-  const data = await response.json()
-  if (!response.ok) {
-    throw new Error(data.detail || "Something went wrong")
-  }
-  
-  return data as T
 }
+
 
 export const api = {
   auth: {
